@@ -1,0 +1,56 @@
+{
+  "name": "canadian-services-api",
+  "version": "1.0.0",
+  "description": "Comprehensive REST API for discovering nearby services across Canada - healthcare, retail, and geographic utilities with multiple data source integration",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "echo \"Tests will be added in future version\" && exit 0",
+    "docker:build": "docker build -t canadian-services-api .",
+    "docker:run": "docker run -p 3000:3000 canadian-services-api",
+    "health-check": "curl -f http://localhost:3000/ || exit 1"
+  },
+  "keywords": [
+    "canada",
+    "services",
+    "api",
+    "healthcare", 
+    "retail",
+    "geolocation",
+    "openstreetmap",
+    "statistics-canada",
+    "geocoding",
+    "rest-api",
+    "nodejs",
+    "express",
+    "location-based-services",
+    "service-discovery"
+  ],
+  "author": {
+    "name": "Professional Developer",
+    "url": "https://github.com/jhonny1677"
+  },
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jhonny1677/Canada-Services-API.git"
+  },
+  "bugs": {
+    "url": "https://github.com/jhonny1677/Canada-Services-API/issues"
+  },
+  "homepage": "https://github.com/jhonny1677/Canada-Services-API#readme",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "dependencies": {
+    "axios": "^1.11.0",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.1",
+    "express": "^5.1.0",
+    "helmet": "^8.1.0",
+    "morgan": "^1.10.1",
+    "node-cache": "^5.1.2"
+  }
+}
