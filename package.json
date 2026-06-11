@@ -8,6 +8,9 @@
     "dev": "node --watch server.js",
     "test": "jest --forceExit",
     "test:coverage": "jest --forceExit --coverage",
+    "migrate": "node-pg-migrate -m migrations up",
+    "migrate:down": "node-pg-migrate -m migrations down",
+    "migrate:status": "node-pg-migrate -m migrations status",
     "docker:build": "docker build -t canadian-services-api .",
     "docker:run": "docker run -p 3000:3000 canadian-services-api",
     "health-check": "curl -f http://localhost:3000/ || exit 1"
@@ -54,6 +57,8 @@
     "helmet": "^8.1.0",
     "morgan": "^1.10.1",
     "node-cache": "^5.1.2",
+    "node-pg-migrate": "^8.0.4",
+    "pg": "^8.21.0",
     "swagger-jsdoc": "^6.3.0",
     "swagger-ui-express": "^5.0.1",
     "winston": "^3.19.0"
@@ -64,6 +69,8 @@
   },
   "jest": {
     "testEnvironment": "node",
-    "testMatch": ["**/tests/**/*.test.js"]
+    "testMatch": [
+      "**/tests/**/*.test.js"
+    ]
   }
 }

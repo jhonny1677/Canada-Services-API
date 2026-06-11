@@ -5,6 +5,7 @@ const morgan = require('morgan');
 const NodeCache = require('node-cache');
 require('dotenv').config();
 
+const db = require('./db/client');
 const { createLimiter } = require('./middleware/rateLimiter');
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./config/swagger');
@@ -115,9 +116,14 @@ app.use((req, res) => {
 });
 
 if (require.main === module) {
-  app.listen(PORT, () => {
-    console.log(`Canadian Services API running on port ${PORT}`);
-  });
+  db.query('SELECT 1')
+    .then(() => logger.info('Database connected'))
+    .catch(() => logger.warn('Database unavailable — running without persistence'))
+    .finally(() => {
+      app.listen(PORT, () => {
+        logger.info(`Canadian Services API running on port ${PORT}`);
+      });
+    });
 }
 
 module.exports = app;
