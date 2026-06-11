@@ -7,7 +7,7 @@ export default function Header() {
       </div>
       <nav className="header-nav">
         <a
-          href="https://canada-services-api.onrender.com/api/docs"
+          href="https://canada-services-api.onrender.com/docs"
           target="_blank"
           rel="noopener noreferrer"
           className="header-link"
