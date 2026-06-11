@@ -10,6 +10,8 @@ yarn-error.log*
 .env.development.local
 .env.test.local
 .env.production.local
+# Docker Compose database credentials — never commit real passwords
+.env.db
 
 # Logs
 logs/
