@@ -3,9 +3,6 @@
 exports.shorthands = undefined;
 
 exports.up = (pgm) => {
-  pgm.createExtension('postgis', { ifNotExists: true });
-
-  // Shared trigger function for updated_at columns
   pgm.sql(`
     CREATE OR REPLACE FUNCTION set_updated_at()
     RETURNS TRIGGER AS $$
@@ -16,8 +13,6 @@ exports.up = (pgm) => {
     $$ LANGUAGE plpgsql
   `);
 
-  // Use raw SQL for the table because the generated geom column requires
-  // PostGIS syntax that node-pg-migrate's createTable API cannot express.
   pgm.sql(`
     CREATE TABLE IF NOT EXISTS services (
       id         UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -26,8 +21,6 @@ exports.up = (pgm) => {
       type       TEXT          NOT NULL,
       lat        NUMERIC(10,7) NOT NULL,
       lon        NUMERIC(10,7) NOT NULL,
-      geom       GEOMETRY(Point, 4326)
-                   GENERATED ALWAYS AS (ST_SetSRID(ST_MakePoint(lon, lat), 4326)) STORED,
       address    TEXT,
       tags       JSONB,
       source     TEXT          NOT NULL DEFAULT 'overpass',
@@ -37,7 +30,6 @@ exports.up = (pgm) => {
     )
   `);
 
-  // Idempotent trigger creation
   pgm.sql(`
     DO $do$ BEGIN
       IF NOT EXISTS (
@@ -50,7 +42,8 @@ exports.up = (pgm) => {
     END $do$
   `);
 
-  pgm.createIndex('services', 'geom',     { name: 'idx_services_geom',     method: 'gist', ifNotExists: true });
+  pgm.createIndex('services', 'lat',      { name: 'idx_services_lat',      ifNotExists: true });
+  pgm.createIndex('services', 'lon',      { name: 'idx_services_lon',      ifNotExists: true });
   pgm.createIndex('services', 'category', { name: 'idx_services_category', ifNotExists: true });
   pgm.createIndex('services', 'type',     { name: 'idx_services_type',     ifNotExists: true });
 };
@@ -58,7 +51,8 @@ exports.up = (pgm) => {
 exports.down = (pgm) => {
   pgm.dropIndex('services', 'type',     { name: 'idx_services_type',     ifExists: true });
   pgm.dropIndex('services', 'category', { name: 'idx_services_category', ifExists: true });
-  pgm.dropIndex('services', 'geom',     { name: 'idx_services_geom',     ifExists: true });
+  pgm.dropIndex('services', 'lon',      { name: 'idx_services_lon',      ifExists: true });
+  pgm.dropIndex('services', 'lat',      { name: 'idx_services_lat',      ifExists: true });
   pgm.sql('DROP TRIGGER IF EXISTS trg_services_updated_at ON services');
   pgm.sql('DROP FUNCTION IF EXISTS set_updated_at()');
   pgm.dropTable('services', { ifExists: true });

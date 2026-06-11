@@ -2,31 +2,41 @@
 
 const { query } = require('../client');
 
+// Bounding-box constants — 1 degree latitude ≈ 111,111 m; longitude degree
+// shrinks with cos(lat).  The box is a fast B-tree pre-filter; the inline
+// Haversine confirms the exact radius and drives ORDER BY.
+const HAVERSINE_SQL = `
+  2 * 6371000 * ASIN(
+    SQRT(
+      POWER(SIN(RADIANS((lat::float - $1) / 2)), 2) +
+      COS(RADIANS($1)) * COS(RADIANS(lat::float)) *
+      POWER(SIN(RADIANS((lon::float - $2) / 2)), 2)
+    )
+  )`.trim();
+
 async function findNearby(lat, lon, radiusMeters, category, types) {
   const params = [lat, lon, category, radiusMeters];
+
   let sql = `
     SELECT
       id, name, category, type,
       lat::float AS lat, lon::float AS lon,
       address, tags,
-      ST_Distance(
-        geom::geography,
-        ST_SetSRID(ST_MakePoint($2, $1), 4326)::geography
-      ) / 1000.0 AS distance_km
+      ${HAVERSINE_SQL} AS distance_m
     FROM services
     WHERE category = $3
-      AND ST_DWithin(
-        geom::geography,
-        ST_SetSRID(ST_MakePoint($2, $1), 4326)::geography,
-        $4
-      )`;
+      AND lat::float BETWEEN $1 - $4 / 111111.0
+                         AND $1 + $4 / 111111.0
+      AND lon::float BETWEEN $2 - $4 / (111111.0 * COS(RADIANS($1)))
+                         AND $2 + $4 / (111111.0 * COS(RADIANS($1)))
+      AND ${HAVERSINE_SQL} <= $4`;
 
   if (types && types.length > 0) {
     params.push(types);
     sql += ` AND type = ANY($${params.length})`;
   }
 
-  sql += '\n    ORDER BY distance_km';
+  sql += '\n    ORDER BY distance_m';
 
   const result = await query(sql, params);
   return result.rows.map(row => ({
@@ -41,7 +51,7 @@ async function findNearby(lat, lon, radiusMeters, category, types) {
     website: row.tags?.website || null,
     opening_hours: row.tags?.opening_hours || null,
     tags: row.tags,
-    distance: parseFloat(row.distance_km)
+    distance: parseFloat(row.distance_m) / 1000.0
   }));
 }
 

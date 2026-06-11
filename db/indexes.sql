@@ -2,11 +2,14 @@
 -- services indexes
 -- -----------------------------------------------------------------------
 
--- Primary spatial index — powers ST_DWithin radius queries
-CREATE INDEX IF NOT EXISTS idx_services_geom
-  ON services USING GIST (geom);
+-- Bounding-box pre-filter for radius queries (replaces PostGIS GIST)
+CREATE INDEX IF NOT EXISTS idx_services_lat
+  ON services (lat);
 
--- Narrows the spatial search to a single category before the GIST scan
+CREATE INDEX IF NOT EXISTS idx_services_lon
+  ON services (lon);
+
+-- Narrows the bounding-box scan to a single category
 CREATE INDEX IF NOT EXISTS idx_services_category
   ON services (category);
 
