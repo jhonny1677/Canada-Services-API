@@ -1,5 +1,6 @@
 [![CI](https://github.com/jhonny1677/Canada-Services-API/actions/workflows/ci.yml/badge.svg)](https://github.com/jhonny1677/Canada-Services-API/actions/workflows/ci.yml)
 [![Live API](https://img.shields.io/badge/Live%20API-online-brightgreen)](https://canada-services-api.onrender.com/health)
+[![Live Demo](https://img.shields.io/badge/demo-live-brightgreen)](https://jhonny1677.github.io/Canada-Services-API/)
 
 # 🇨🇦 Canadian Services API
 
@@ -315,6 +316,22 @@ CMD ["npm", "start"]
 | OpenAPI JSON spec | `https://<your-app>.onrender.com/docs.json` |
 | Health check | `https://<your-app>.onrender.com/health` |
 | Healthcare nearby | `https://<your-app>.onrender.com/api/healthcare/nearby` |
+
+## Frontend Demo
+
+An interactive map demo is included in the `client/` directory.
+
+**Live demo:** [https://jhonny1677.github.io/Canada-Services-API/](https://jhonny1677.github.io/Canada-Services-API/)
+
+Built with React + Vite + Leaflet. Geocodes addresses, drops coloured markers for healthcare (red) and retail (blue) services, shows a radius circle, and lets you click any result to fly to it on the map.
+
+```bash
+cd client
+npm install
+npm run dev   # http://localhost:5173
+```
+
+See [`client/README.md`](client/README.md) for full setup instructions.
 
 ## Limitations
 
