@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "test": "echo \"Tests will be added in future version\" && exit 0",
+    "test": "jest --forceExit",
+    "test:coverage": "jest --forceExit --coverage",
     "docker:build": "docker build -t canadian-services-api .",
     "docker:run": "docker run -p 3000:3000 canadian-services-api",
     "health-check": "curl -f http://localhost:3000/ || exit 1"
@@ -56,5 +57,13 @@
     "swagger-jsdoc": "^6.3.0",
     "swagger-ui-express": "^5.0.1",
     "winston": "^3.19.0"
+  },
+  "devDependencies": {
+    "jest": "^30.4.2",
+    "supertest": "^7.2.2"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "testMatch": ["**/tests/**/*.test.js"]
   }
 }

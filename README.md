@@ -1,6 +1,9 @@
+[![CI](https://github.com/jhonny1677/Canada-Services-API/actions/workflows/ci.yml/badge.svg)](https://github.com/jhonny1677/Canada-Services-API/actions/workflows/ci.yml)
+[![Live API](https://img.shields.io/badge/Live%20API-online-brightgreen)](https://canada-services-api.onrender.com/health)
+
 # 🇨🇦 Canadian Services API
 
-[![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
+[![Node.js](https://img.shields.io/badge/Node.js-20+-green.svg)](https://nodejs.org/)
 [![Express.js](https://img.shields.io/badge/Express.js-5.1+-blue.svg)](https://expressjs.com/)
 [![API](https://img.shields.io/badge/API-REST-orange.svg)](https://restfulapi.net/)
 [![License](https://img.shields.io/badge/License-ISC-yellow.svg)](https://opensource.org/licenses/ISC)

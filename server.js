@@ -114,8 +114,10 @@ app.use((req, res) => {
   res.status(404).json({ error: 'Endpoint not found' });
 });
 
-app.listen(PORT, () => {
-  console.log(`Canadian Services API running on port ${PORT}`);
-});
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`Canadian Services API running on port ${PORT}`);
+  });
+}
 
 module.exports = app;
