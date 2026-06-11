@@ -4,8 +4,10 @@ const path = require('path');
 const logger = require('../utils/logger');
 
 async function runMigrations() {
-  let runner = require('node-pg-migrate');
-  if (runner && runner.default) runner = runner.default;
+  // node-pg-migrate v8 ships as pure ESM ("type":"module"), so require() throws
+  // ERR_REQUIRE_ESM.  Dynamic import() is the correct way to consume an ESM
+  // package from a CommonJS file in Node 18+.
+  const { runner } = await import('node-pg-migrate');
 
   logger.info('Running migrations...');
 
