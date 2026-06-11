@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const { geocodeAddress, generateBoundingBox, sortByDistance } = require('../utils/geoUtils');
 const OverpassAPI = require('../utils/overpassApi');
+const servicesQueries = require('../db/queries/services');
+const geocodeQueries = require('../db/queries/geocode');
 
 const overpass = new OverpassAPI();
 
@@ -162,13 +164,27 @@ router.get('/nearby', async (req, res) => {
     let userLat, userLon;
 
     if (address) {
-      const cacheKey = `geocode_${address}`;
-      let geocodeResult = req.cache.get(cacheKey);
+      const geocodeTtl = parseInt(process.env.GEOCODE_CACHE_TTL_SECONDS) || 86400;
+      const l1Key = `geocode_${address}`;
+      let geocodeResult = req.cache.get(l1Key);
+
+      if (!geocodeResult) {
+        try {
+          const row = await geocodeQueries.getCachedGeocode(address);
+          if (row) {
+            geocodeResult = { latitude: row.lat, longitude: row.lon, display_name: row.display_name, address: row.address_json };
+            req.cache.set(l1Key, geocodeResult, geocodeTtl);
+          }
+        } catch (_) {}
+      }
 
       if (!geocodeResult) {
         geocodeResult = await geocodeAddress(address);
         if (geocodeResult) {
-          req.cache.set(cacheKey, geocodeResult, parseInt(process.env.GEOCODE_CACHE_TTL_SECONDS) || 86400);
+          req.cache.set(l1Key, geocodeResult, geocodeTtl);
+          try {
+            await geocodeQueries.setCachedGeocode(address, geocodeResult.latitude, geocodeResult.longitude, geocodeResult.display_name, geocodeResult.address, geocodeTtl);
+          } catch (_) {}
         }
       }
 
@@ -207,16 +223,33 @@ router.get('/nearby', async (req, res) => {
 
     const radiusKm = Math.min(parseFloat(radius), 50);
     const limitNum = Math.min(parseInt(limit), 200);
+    const serviceTtl = parseInt(process.env.CACHE_TTL_SECONDS) || 3600;
+    const l1Key = `healthcare_${Math.round(userLat * 100)}_${Math.round(userLon * 100)}_${radiusKm}`;
 
-    const bbox = generateBoundingBox(userLat, userLon, radiusKm);
-    const cacheKey = `healthcare_${Math.round(userLat * 100)}_${Math.round(userLon * 100)}_${radiusKm}`;
+    let facilities = req.cache.get(l1Key);
 
-    const query = overpass.buildHealthcareQuery(bbox, limitNum);
-    const data = await overpass.query(query, req.cache, cacheKey);
+    if (!facilities) {
+      try {
+        const rows = await servicesQueries.findNearby(userLat, userLon, radiusKm * 1000, 'healthcare');
+        if (rows.length > 0) {
+          facilities = rows;
+          req.cache.set(l1Key, facilities, serviceTtl);
+        }
+      } catch (_) {}
+    }
 
-    let facilities = overpass.parseElements(data);
-    facilities = sortByDistance(facilities, userLat, userLon);
-    facilities = facilities.filter(facility => facility.distance <= radiusKm);
+    if (!facilities) {
+      const bbox = generateBoundingBox(userLat, userLon, radiusKm);
+      const overpassQuery = overpass.buildHealthcareQuery(bbox, limitNum);
+      const data = await overpass.query(overpassQuery, null, null);
+      facilities = overpass.parseElements(data);
+      facilities = sortByDistance(facilities, userLat, userLon);
+      facilities = facilities.filter(f => f.distance <= radiusKm);
+      try {
+        await servicesQueries.upsertServices(facilities, 'healthcare');
+      } catch (_) {}
+      req.cache.set(l1Key, facilities, serviceTtl);
+    }
 
     const categorized = {
       hospitals: facilities.filter(f => f.amenity === 'hospital'),
@@ -274,17 +307,22 @@ router.get('/nearby', async (req, res) => {
  *                     dentist: Dental offices
  *                     healthcare: Other healthcare facilities
  */
-router.get('/types', (req, res) => {
-  res.json({
-    healthcare_types: {
-      hospital: 'Hospitals and medical centers',
-      clinic: 'Medical clinics',
-      doctors: 'Doctor offices',
-      pharmacy: 'Pharmacies and drug stores',
-      dentist: 'Dental offices',
-      healthcare: 'Other healthcare facilities'
-    }
-  });
+router.get('/types', async (req, res) => {
+  const typesMap = {
+    hospital: 'Hospitals and medical centers',
+    clinic: 'Medical clinics',
+    doctors: 'Doctor offices',
+    pharmacy: 'Pharmacies and drug stores',
+    dentist: 'Dental offices',
+    healthcare: 'Other healthcare facilities'
+  };
+
+  try {
+    const dbTypes = await servicesQueries.getDistinctTypes('healthcare');
+    dbTypes.forEach(t => { if (!typesMap[t]) typesMap[t] = t; });
+  } catch (_) {}
+
+  res.json({ healthcare_types: typesMap });
 });
 
 module.exports = router;

@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { geocodeAddress, reverseGeocode, calculateDistance } = require('../utils/geoUtils');
 const { createLimiter } = require('../middleware/rateLimiter');
+const geocodeQueries = require('../db/queries/geocode');
 
 const geocodeLimiter = createLimiter(
   parseInt(process.env.RATE_LIMIT_GEOCODE_MAX_REQUESTS) || 30,
@@ -90,13 +91,27 @@ router.get('/geocode', geocodeLimiter, async (req, res) => {
       });
     }
 
+    const geocodeTtl = parseInt(process.env.GEOCODE_CACHE_TTL_SECONDS) || 86400;
     const cacheKey = `geocode_${address}`;
     let result = req.cache.get(cacheKey);
 
     if (!result) {
+      try {
+        const row = await geocodeQueries.getCachedGeocode(address);
+        if (row) {
+          result = { latitude: row.lat, longitude: row.lon, display_name: row.display_name, address: row.address_json };
+          req.cache.set(cacheKey, result, geocodeTtl);
+        }
+      } catch (_) {}
+    }
+
+    if (!result) {
       result = await geocodeAddress(address);
       if (result) {
-        req.cache.set(cacheKey, result, parseInt(process.env.GEOCODE_CACHE_TTL_SECONDS) || 86400);
+        req.cache.set(cacheKey, result, geocodeTtl);
+        try {
+          await geocodeQueries.setCachedGeocode(address, result.latitude, result.longitude, result.display_name, result.address, geocodeTtl);
+        } catch (_) {}
       }
     }
 

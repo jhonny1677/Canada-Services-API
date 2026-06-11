@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const { geocodeAddress, generateBoundingBox, sortByDistance } = require('../utils/geoUtils');
 const OverpassAPI = require('../utils/overpassApi');
+const servicesQueries = require('../db/queries/services');
+const geocodeQueries = require('../db/queries/geocode');
 
 const overpass = new OverpassAPI();
 
@@ -174,13 +176,27 @@ router.get('/nearby', async (req, res) => {
     let userLat, userLon;
 
     if (address) {
-      const cacheKey = `geocode_${address}`;
-      let geocodeResult = req.cache.get(cacheKey);
+      const geocodeTtl = parseInt(process.env.GEOCODE_CACHE_TTL_SECONDS) || 86400;
+      const l1Key = `geocode_${address}`;
+      let geocodeResult = req.cache.get(l1Key);
+
+      if (!geocodeResult) {
+        try {
+          const row = await geocodeQueries.getCachedGeocode(address);
+          if (row) {
+            geocodeResult = { latitude: row.lat, longitude: row.lon, display_name: row.display_name, address: row.address_json };
+            req.cache.set(l1Key, geocodeResult, geocodeTtl);
+          }
+        } catch (_) {}
+      }
 
       if (!geocodeResult) {
         geocodeResult = await geocodeAddress(address);
         if (geocodeResult) {
-          req.cache.set(cacheKey, geocodeResult, parseInt(process.env.GEOCODE_CACHE_TTL_SECONDS) || 86400);
+          req.cache.set(l1Key, geocodeResult, geocodeTtl);
+          try {
+            await geocodeQueries.setCachedGeocode(address, geocodeResult.latitude, geocodeResult.longitude, geocodeResult.display_name, geocodeResult.address, geocodeTtl);
+          } catch (_) {}
         }
       }
 
@@ -220,8 +236,6 @@ router.get('/nearby', async (req, res) => {
     const radiusKm = Math.min(parseFloat(radius), 50);
     const limitNum = Math.min(parseInt(limit), 200);
 
-    const bbox = generateBoundingBox(userLat, userLon, radiusKm);
-
     let shopTypes = [];
     if (category && SHOP_CATEGORIES[category]) {
       shopTypes = SHOP_CATEGORIES[category];
@@ -229,14 +243,33 @@ router.get('/nearby', async (req, res) => {
       shopTypes = shop_type.split(',');
     }
 
-    const cacheKey = `retail_${Math.round(userLat * 100)}_${Math.round(userLon * 100)}_${radiusKm}_${shopTypes.join('_')}`;
+    const serviceTtl = parseInt(process.env.CACHE_TTL_SECONDS) || 3600;
+    const l1Key = `retail_${Math.round(userLat * 100)}_${Math.round(userLon * 100)}_${radiusKm}_${shopTypes.join('_')}`;
 
-    const query = overpass.buildRetailQuery(bbox, shopTypes, limitNum);
-    const data = await overpass.query(query, req.cache, cacheKey);
+    let stores = req.cache.get(l1Key);
 
-    let stores = overpass.parseElements(data);
-    stores = sortByDistance(stores, userLat, userLon);
-    stores = stores.filter(store => store.distance <= radiusKm);
+    if (!stores) {
+      try {
+        const rows = await servicesQueries.findNearby(userLat, userLon, radiusKm * 1000, 'retail', shopTypes.length > 0 ? shopTypes : undefined);
+        if (rows.length > 0) {
+          stores = rows;
+          req.cache.set(l1Key, stores, serviceTtl);
+        }
+      } catch (_) {}
+    }
+
+    if (!stores) {
+      const bbox = generateBoundingBox(userLat, userLon, radiusKm);
+      const overpassQuery = overpass.buildRetailQuery(bbox, shopTypes, limitNum);
+      const data = await overpass.query(overpassQuery, null, null);
+      stores = overpass.parseElements(data);
+      stores = sortByDistance(stores, userLat, userLon);
+      stores = stores.filter(s => s.distance <= radiusKm);
+      try {
+        await servicesQueries.upsertServices(stores, 'retail');
+      } catch (_) {}
+      req.cache.set(l1Key, stores, serviceTtl);
+    }
 
     const categorized = {};
     Object.keys(SHOP_CATEGORIES).forEach(cat => {

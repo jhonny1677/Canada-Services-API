@@ -26,7 +26,7 @@ class OverpassAPI {
       const result = response.data;
       
       if (cache && cacheKey) {
-        cache.set(cacheKey, result, 1800);
+        cache.set(cacheKey, result, parseInt(process.env.CACHE_TTL_SECONDS) || 3600);
       }
 
       return result;

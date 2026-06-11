@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const CanadianDataSources = require('../utils/canadianDataSources');
+const postalQueries = require('../db/queries/postal');
 
 const canadianData = new CanadianDataSources();
 
@@ -126,14 +127,27 @@ router.get('/cities', (req, res) => {
 router.get('/postal-code/:code', async (req, res) => {
   try {
     const { code } = req.params;
-
+    const postalTtl = parseInt(process.env.GEOCODE_CACHE_TTL_SECONDS) || 86400;
     const cacheKey = `postal_code_${code}`;
     let result = req.cache.get(cacheKey);
 
     if (!result) {
+      try {
+        const row = await postalQueries.getCachedPostal(code);
+        if (row) {
+          result = { postal_code: code, fsa: row.fsa, latitude: row.lat, longitude: row.lon, display_name: row.display_name };
+          req.cache.set(cacheKey, result, postalTtl);
+        }
+      } catch (_) {}
+    }
+
+    if (!result) {
       result = await canadianData.getPostalCodeData(code);
       if (result) {
-        req.cache.set(cacheKey, result, 86400);
+        req.cache.set(cacheKey, result, postalTtl);
+        try {
+          await postalQueries.setCachedPostal(code, result.latitude, result.longitude, result.display_name, result.fsa, postalTtl);
+        } catch (_) {}
       }
     }
 
