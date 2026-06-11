@@ -57,8 +57,9 @@ class CanadianDataSources {
 
       const fsa = cleanedCode.substring(0, 3);
       
+      const nominatimUrl = process.env.NOMINATIM_URL || 'https://nominatim.openstreetmap.org';
       const response = await axios.get(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${fsa}&countrycodes=ca&limit=1`,
+        `${nominatimUrl}/search?format=json&q=${fsa}&countrycodes=ca&limit=1`,
         {
           headers: {
             'User-Agent': 'Canadian-Services-API/1.0.0'
@@ -135,8 +136,9 @@ class CanadianDataSources {
     }
 
     try {
+      const nominatimUrl = process.env.NOMINATIM_URL || 'https://nominatim.openstreetmap.org';
       const response = await axios.get(
-        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&addressdetails=1&zoom=10`,
+        `${nominatimUrl}/reverse?format=json&lat=${lat}&lon=${lon}&addressdetails=1&zoom=10`,
         {
           headers: {
             'User-Agent': 'Canadian-Services-API/1.0.0'

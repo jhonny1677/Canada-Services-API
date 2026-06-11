@@ -1,26 +1,24 @@
 FROM node:18-alpine
 
-# Set working directory
 WORKDIR /app
 
-# Copy package files
+# Default to production; pass -e NODE_ENV=development to override for local testing
+ENV NODE_ENV=production
+
 COPY package*.json ./
 
-# Install dependencies
+# --production skips devDependencies — keeps the image lean
 RUN npm install --production
 
-# Copy application code
 COPY . .
 
-# Create logs directory
+# logs/ is only used when LOG_FILE is set; harmless to create in the image
 RUN mkdir -p logs
 
-# Expose port
+# 3000 is the PORT default; Render (and other platforms) override PORT at runtime
 EXPOSE 3000
 
-# Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:3000/ || exit 1
+  CMD wget -qO- http://localhost:3000/health || exit 1
 
-# Start the application
 CMD ["npm", "start"]

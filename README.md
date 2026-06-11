@@ -253,6 +253,66 @@ EXPOSE 3000
 CMD ["npm", "start"]
 ```
 
+## Deploying to Render
+
+### Steps
+
+1. **Fork or push this repo to GitHub.**
+
+2. **Create a new Web Service on [render.com](https://render.com)**
+   - Click *New* → *Web Service* → connect your GitHub account → select this repo.
+   - Render detects `render.yaml` automatically and pre-fills the build/start commands.
+
+3. **Set environment variables** in the Render dashboard under *Environment* before the first deploy.
+   See the table below — only `NODE_ENV` and `SERVER_URL` are strictly required; everything else has a working default.
+
+4. **Click *Create Web Service*.** Render runs `npm install` then `node server.js`.
+
+5. **After the first successful deploy**, copy your service URL
+   (e.g. `https://canadian-services-api.onrender.com`) and set it as the value of `SERVER_URL`
+   in the Render environment tab. Trigger a manual redeploy so Swagger UI reflects the correct base URL.
+
+6. **Verify the deployment:**
+   ```
+   https://<your-app>.onrender.com/health
+   https://<your-app>.onrender.com/docs
+   ```
+
+### Environment variables
+
+| Variable | Purpose | Example / Default | Required? |
+|---|---|---|---|
+| `PORT` | Server port | _Render sets this automatically_ | Auto |
+| `NODE_ENV` | Runtime environment | `production` | **Required** |
+| `SERVER_URL` | Public URL — shown in Swagger UI | `https://your-app.onrender.com` | **Required** |
+| `CACHE_TTL_SECONDS` | Default cache TTL (seconds) | `3600` | Optional |
+| `GEOCODE_CACHE_TTL_SECONDS` | Geocode result cache TTL (seconds) | `86400` | Optional |
+| `RATE_LIMIT_WINDOW_MS` | Rate limit window (milliseconds) | `900000` | Optional |
+| `RATE_LIMIT_MAX_REQUESTS` | Max requests / window / IP — global | `100` | Optional |
+| `RATE_LIMIT_GEOCODE_MAX_REQUESTS` | Max requests / window / IP — geocode endpoints | `30` | Optional |
+| `NOMINATIM_URL` | Nominatim geocoding base URL | `https://nominatim.openstreetmap.org` | Optional |
+| `OVERPASS_URL` | Overpass API base URL | `https://overpass-api.de/api` | Optional |
+| `LOG_LEVEL` | Winston log level (`error`/`warn`/`info`/`debug`) | `info` | Optional |
+| `LOG_FILE` | Log file path | _Leave **empty** on Render — use stdout_ | Do not set |
+| `CORS_ORIGIN` | Allowed CORS origins | `*` | Optional |
+| `CORS_METHODS` | Allowed HTTP methods | `GET,POST,PUT,DELETE` | Optional |
+| `CORS_HEADERS` | Allowed request headers | `Content-Type,Authorization` | Optional |
+
+### Free tier notes
+
+- **Spin-down after inactivity**: Render's free tier suspends the service after **15 minutes of no traffic**. The first request after a cold start takes roughly **30–50 seconds** while the instance boots. Subsequent requests are fast.
+- **Ephemeral filesystem**: Do not set `LOG_FILE`. The disk resets on every deploy and restart; all logs must go to stdout, which Render captures in its log dashboard.
+- **No persistent cache**: The in-memory `node-cache` resets on every cold start. TTL env vars are irrelevant across restarts.
+
+### Live endpoints
+
+| Endpoint | URL |
+|---|---|
+| Interactive Swagger UI | `https://<your-app>.onrender.com/docs` |
+| OpenAPI JSON spec | `https://<your-app>.onrender.com/docs.json` |
+| Health check | `https://<your-app>.onrender.com/health` |
+| Healthcare nearby | `https://<your-app>.onrender.com/api/healthcare/nearby` |
+
 ## Limitations
 
 - **Rate Limits**: Overpass API and Nominatim have usage limits

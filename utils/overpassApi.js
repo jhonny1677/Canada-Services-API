@@ -2,7 +2,7 @@ const axios = require('axios');
 
 class OverpassAPI {
   constructor() {
-    this.baseURL = 'https://overpass-api.de/api/interpreter';
+    this.baseURL = `${process.env.OVERPASS_URL || 'https://overpass-api.de/api'}/interpreter`;
     this.timeout = 30000;
   }
 

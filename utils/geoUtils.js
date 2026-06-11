@@ -18,9 +18,10 @@ function toRadians(degrees) {
 
 async function geocodeAddress(address) {
   try {
+    const nominatimUrl = process.env.NOMINATIM_URL || 'https://nominatim.openstreetmap.org';
     const encodedAddress = encodeURIComponent(`${address}, Canada`);
     const response = await axios.get(
-      `https://nominatim.openstreetmap.org/search?format=json&q=${encodedAddress}&limit=1&addressdetails=1&countrycodes=ca`,
+      `${nominatimUrl}/search?format=json&q=${encodedAddress}&limit=1&addressdetails=1&countrycodes=ca`,
       {
         headers: {
           'User-Agent': 'Canadian-Services-API/1.0.0'
@@ -46,8 +47,9 @@ async function geocodeAddress(address) {
 
 async function reverseGeocode(lat, lon) {
   try {
+    const nominatimUrl = process.env.NOMINATIM_URL || 'https://nominatim.openstreetmap.org';
     const response = await axios.get(
-      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&addressdetails=1`,
+      `${nominatimUrl}/reverse?format=json&lat=${lat}&lon=${lon}&addressdetails=1`,
       {
         headers: {
           'User-Agent': 'Canadian-Services-API/1.0.0'

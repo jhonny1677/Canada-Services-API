@@ -1,0 +1,74 @@
+services:
+  - type: web
+    name: canadian-services-api
+    plan: free
+    runtime: node
+    buildCommand: npm install
+    startCommand: node server.js
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      # Always production on Render — hardcoded, not overridable from the dashboard
+      - key: NODE_ENV
+        value: production
+
+      # PORT is injected automatically by Render — do not add it here
+
+      # Public URL of this service. Set to https://<your-app>.onrender.com after first deploy,
+      # then redeploy so Swagger UI reflects the correct base URL.
+      - key: SERVER_URL
+        sync: false
+
+      # How long general API responses are cached in memory (seconds). Default: 3600
+      - key: CACHE_TTL_SECONDS
+        sync: false
+
+      # How long geocoded address results are cached in memory (seconds). Default: 86400
+      - key: GEOCODE_CACHE_TTL_SECONDS
+        sync: false
+
+      # Length of the rate-limit sliding window in milliseconds. Default: 900000 (15 min)
+      - key: RATE_LIMIT_WINDOW_MS
+        sync: false
+
+      # Maximum requests per window per IP address across all endpoints. Default: 100
+      - key: RATE_LIMIT_MAX_REQUESTS
+        sync: false
+
+      # Stricter limit for geocode endpoints, which proxy the external Nominatim API.
+      # Keep this low to avoid getting the server IP blocked upstream. Default: 30
+      - key: RATE_LIMIT_GEOCODE_MAX_REQUESTS
+        sync: false
+
+      # Nominatim geocoding base URL. Override only if running a private instance.
+      # Default: https://nominatim.openstreetmap.org
+      - key: NOMINATIM_URL
+        sync: false
+
+      # Overpass API base URL. Override only if running a private instance.
+      # Default: https://overpass-api.de/api
+      - key: OVERPASS_URL
+        sync: false
+
+      # Winston log level: error | warn | info | http | verbose | debug. Default: info
+      - key: LOG_LEVEL
+        sync: false
+
+      # Log file path. DO NOT set on Render — the filesystem is ephemeral and resets on
+      # every deploy. Leave blank; Render captures stdout automatically.
+      - key: LOG_FILE
+        sync: false
+
+      # Allowed CORS origins. Use * for a fully public API, or restrict to your frontend
+      # domain (e.g. https://your-frontend.com) for tighter security. Default: *
+      - key: CORS_ORIGIN
+        sync: false
+
+      # Comma-separated list of allowed HTTP methods. Default: GET,POST,PUT,DELETE
+      - key: CORS_METHODS
+        sync: false
+
+      # Comma-separated list of allowed request headers.
+      # Default: Content-Type,Authorization
+      - key: CORS_HEADERS
+        sync: false

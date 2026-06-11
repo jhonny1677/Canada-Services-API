@@ -15,7 +15,7 @@
     "canada",
     "services",
     "api",
-    "healthcare", 
+    "healthcare",
     "retail",
     "geolocation",
     "openstreetmap",
@@ -49,8 +49,12 @@
     "cors": "^2.8.5",
     "dotenv": "^17.2.1",
     "express": "^5.1.0",
+    "express-rate-limit": "^8.5.2",
     "helmet": "^8.1.0",
     "morgan": "^1.10.1",
-    "node-cache": "^5.1.2"
+    "node-cache": "^5.1.2",
+    "swagger-jsdoc": "^6.3.0",
+    "swagger-ui-express": "^5.0.1",
+    "winston": "^3.19.0"
   }
 }
