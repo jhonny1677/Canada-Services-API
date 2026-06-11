@@ -13,8 +13,24 @@ jest.mock('../../utils/geoUtils', () => ({
   geocodeAddress: jest.fn()
 }));
 
+jest.mock('../../db/queries/services', () => ({
+  findNearby: jest.fn(),
+  upsertServices: jest.fn(),
+  getDistinctTypes: jest.fn()
+}));
+
+jest.mock('../../db/queries/geocode', () => ({
+  getCachedGeocode: jest.fn(),
+  setCachedGeocode: jest.fn()
+}));
+
+const OverpassAPI = require('../../utils/overpassApi');
 const app = require('../../server');
 const geoUtils = require('../../utils/geoUtils');
+const servicesQueries = require('../../db/queries/services');
+
+// Captured once at module load; clearAllMocks() resets call tracking but not this ref
+const mockOverpass = OverpassAPI.mock.results[0].value;
 
 afterEach(() => jest.clearAllMocks());
 
@@ -95,5 +111,40 @@ describe('GET /api/healthcare/nearby', () => {
     expect(res.status).toBe(200);
     expect(res.body.total).toBe(0);
     expect(Array.isArray(res.body.all)).toBe(true);
+  });
+});
+
+describe('GET /api/healthcare/nearby — L2 cache paths', () => {
+  const BASE = '/api/healthcare/nearby';
+
+  // Use coordinates not used in any other test to guarantee an L1 cache miss
+  const L2_HIT_PARAMS  = { lat: 45.42, lon: -75.70 }; // Ottawa
+  const L2_MISS_PARAMS = { lat: 49.25, lon: -123.12 }; // Vancouver
+
+  test('L2 hit: findNearby returns data — Overpass is never called', async () => {
+    const dbFacilities = [
+      { id: 'uuid-1', lat: 45.42, lon: -75.70, name: 'Ottawa General', amenity: 'hospital', distance: 0.3, tags: {} }
+    ];
+    servicesQueries.findNearby.mockResolvedValueOnce(dbFacilities);
+
+    const res = await request(app).get(BASE).query(L2_HIT_PARAMS);
+
+    expect(res.status).toBe(200);
+    expect(res.body.total).toBe(1);
+    expect(res.body.all[0].name).toBe('Ottawa General');
+    expect(mockOverpass.query).not.toHaveBeenCalled();
+  });
+
+  test('L2 miss: findNearby returns [] — Overpass is called and upsertServices is called', async () => {
+    servicesQueries.findNearby.mockResolvedValueOnce([]);
+
+    const res = await request(app).get(BASE).query(L2_MISS_PARAMS);
+
+    expect(res.status).toBe(200);
+    expect(mockOverpass.query).toHaveBeenCalled();
+    expect(servicesQueries.upsertServices).toHaveBeenCalledWith(
+      expect.any(Array),
+      'healthcare'
+    );
   });
 });

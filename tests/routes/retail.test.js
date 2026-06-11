@@ -13,8 +13,24 @@ jest.mock('../../utils/geoUtils', () => ({
   geocodeAddress: jest.fn()
 }));
 
+jest.mock('../../db/queries/services', () => ({
+  findNearby: jest.fn(),
+  upsertServices: jest.fn(),
+  getDistinctTypes: jest.fn()
+}));
+
+jest.mock('../../db/queries/geocode', () => ({
+  getCachedGeocode: jest.fn(),
+  setCachedGeocode: jest.fn()
+}));
+
+const OverpassAPI = require('../../utils/overpassApi');
 const app = require('../../server');
 const geoUtils = require('../../utils/geoUtils');
+const servicesQueries = require('../../db/queries/services');
+
+// server.js loads healthcare before retail, so retail's OverpassAPI is results[1]
+const mockOverpass = OverpassAPI.mock.results[1].value;
 
 afterEach(() => jest.clearAllMocks());
 
@@ -99,5 +115,39 @@ describe('GET /api/retail/nearby', () => {
     const res = await request(app).get(BASE).query({ address: 'Vancouver, BC' });
     expect(res.status).toBe(200);
     expect(res.body.total).toBe(0);
+  });
+});
+
+describe('GET /api/retail/nearby — L2 cache paths', () => {
+  const BASE = '/api/retail/nearby';
+
+  const L2_HIT_PARAMS  = { lat: 51.05, lon: -114.07 }; // Calgary
+  const L2_MISS_PARAMS = { lat: 53.55, lon: -113.49 }; // Edmonton
+
+  test('L2 hit: findNearby returns data — Overpass is never called', async () => {
+    const dbStores = [
+      { id: 'uuid-2', lat: 51.05, lon: -114.07, name: 'Calgary Market', amenity: 'supermarket', distance: 0.4, tags: {} }
+    ];
+    servicesQueries.findNearby.mockResolvedValueOnce(dbStores);
+
+    const res = await request(app).get(BASE).query(L2_HIT_PARAMS);
+
+    expect(res.status).toBe(200);
+    expect(res.body.total).toBe(1);
+    expect(res.body.all[0].name).toBe('Calgary Market');
+    expect(mockOverpass.query).not.toHaveBeenCalled();
+  });
+
+  test('L2 miss: findNearby returns [] — Overpass is called and upsertServices is called', async () => {
+    servicesQueries.findNearby.mockResolvedValueOnce([]);
+
+    const res = await request(app).get(BASE).query(L2_MISS_PARAMS);
+
+    expect(res.status).toBe(200);
+    expect(mockOverpass.query).toHaveBeenCalled();
+    expect(servicesQueries.upsertServices).toHaveBeenCalledWith(
+      expect.any(Array),
+      'retail'
+    );
   });
 });

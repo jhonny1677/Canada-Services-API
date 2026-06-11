@@ -69,11 +69,11 @@ app.get('/docs.json', (req, res) => {
  * /health:
  *   get:
  *     summary: Service health check
- *     description: Returns current health status, server uptime, and active environment. Used by Render's built-in health monitoring and the Dockerfile HEALTHCHECK.
+ *     description: Returns current health status, database connectivity, server uptime, and active environment. Used by Render's built-in health monitoring and the Dockerfile HEALTHCHECK.
  *     tags: [Health]
  *     responses:
  *       200:
- *         description: Service is healthy
+ *         description: Service is healthy (database field may be "unavailable" if DB is unreachable)
  *         content:
  *           application/json:
  *             schema:
@@ -82,6 +82,10 @@ app.get('/docs.json', (req, res) => {
  *                 status:
  *                   type: string
  *                   example: ok
+ *                 database:
+ *                   type: string
+ *                   enum: [connected, unavailable]
+ *                   example: connected
  *                 uptime:
  *                   type: number
  *                   description: Server uptime in seconds
@@ -94,9 +98,16 @@ app.get('/docs.json', (req, res) => {
  *                   format: date-time
  *                   example: '2024-01-15T10:30:00.000Z'
  */
-app.get('/health', (req, res) => {
+app.get('/health', async (req, res) => {
+  let database = 'unavailable';
+  try {
+    await db.query('SELECT 1');
+    database = 'connected';
+  } catch (_) {}
+
   res.json({
     status: 'ok',
+    database,
     uptime: process.uptime(),
     environment: process.env.NODE_ENV,
     timestamp: new Date().toISOString()
@@ -116,14 +127,30 @@ app.use((req, res) => {
 });
 
 if (require.main === module) {
-  db.query('SELECT 1')
-    .then(() => logger.info('Database connected'))
-    .catch(() => logger.warn('Database unavailable — running without persistence'))
-    .finally(() => {
-      app.listen(PORT, () => {
-        logger.info(`Canadian Services API running on port ${PORT}`);
-      });
+  (async () => {
+    let dbOk = false;
+    try {
+      await db.query('SELECT 1');
+      logger.info('Database connected');
+      dbOk = true;
+    } catch (_) {
+      logger.warn('Database unavailable — running without persistence');
+    }
+
+    if (dbOk && process.env.NODE_ENV === 'production') {
+      try {
+        const { runMigrations } = require('./db/migrate-production');
+        await runMigrations();
+      } catch (err) {
+        logger.error('Migration failed: ' + err.message, { stack: err.stack });
+        process.exit(1);
+      }
+    }
+
+    app.listen(PORT, () => {
+      logger.info(`Canadian Services API running on port ${PORT}`);
     });
+  })();
 }
 
 module.exports = app;

@@ -11,10 +11,11 @@ describe('GET /', () => {
 });
 
 describe('GET /health', () => {
-  test('returns ok status with uptime and timestamp', async () => {
+  test('returns ok status with database field, uptime and timestamp', async () => {
     const res = await request(app).get('/health');
     expect(res.status).toBe(200);
     expect(res.body.status).toBe('ok');
+    expect(['connected', 'unavailable']).toContain(res.body.database);
     expect(typeof res.body.uptime).toBe('number');
     expect(res.body.timestamp).toMatch(/^\d{4}-\d{2}-\d{2}T/);
   });

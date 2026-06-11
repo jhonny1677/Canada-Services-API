@@ -9,6 +9,22 @@ jobs:
   test:
     name: Test
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: canada_user
+          POSTGRES_PASSWORD: canada_pass
+          POSTGRES_DB: canada_services
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - uses: actions/checkout@v4
 
@@ -20,10 +36,16 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Run migrations
+        run: npm run migrate
+        env:
+          DATABASE_URL: postgresql://canada_user:canada_pass@localhost:5432/canada_services
+
       - name: Run tests
         run: npm test
         env:
           NODE_ENV: test
+          DATABASE_URL: postgresql://canada_user:canada_pass@localhost:5432/canada_services
           NOMINATIM_URL: https://nominatim.openstreetmap.org
           OVERPASS_URL: https://overpass-api.de/api
 

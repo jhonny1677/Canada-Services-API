@@ -9,8 +9,15 @@ jest.mock('../../utils/geoUtils', () => {
   };
 });
 
+jest.mock('../../db/queries/geocode', () => ({
+  getCachedGeocode: jest.fn(),
+  setCachedGeocode: jest.fn(),
+  pruneExpiredGeocode: jest.fn()
+}));
+
 const app = require('../../server');
 const geoUtils = require('../../utils/geoUtils');
+const geocodeQueries = require('../../db/queries/geocode');
 
 describe('GET /api/utils/distance', () => {
   const BASE = '/api/utils/distance';
@@ -98,6 +105,24 @@ describe('GET /api/utils/geocode', () => {
     expect(res.body.latitude).toBe(43.6532);
     expect(res.body.longitude).toBe(-79.3832);
     expect(res.body.display_name).toBe('Toronto, Ontario, Canada');
+  });
+
+  test('L2 hit: getCachedGeocode returns row — Nominatim is never called', async () => {
+    geocodeQueries.getCachedGeocode.mockResolvedValueOnce({
+      lat: 45.4215,
+      lon: -75.6972,
+      display_name: 'Ottawa, Ontario, Canada',
+      address_json: { city: 'Ottawa', country: 'Canada' }
+    });
+
+    // Unique address string — guaranteed L1 miss on first call
+    const res = await request(app).get(BASE).query({ address: 'geocode-l2-hit-unique-test' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.latitude).toBe(45.4215);
+    expect(res.body.longitude).toBe(-75.6972);
+    expect(res.body.display_name).toBe('Ottawa, Ontario, Canada');
+    expect(geoUtils.geocodeAddress).not.toHaveBeenCalled();
   });
 });
 
